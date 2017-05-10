@@ -137,7 +137,7 @@ class NeuralNetwork(object):
         #
         # Note: in Python, you can define a function with a lambda expression,
         # as shown below.
-        self.activation_function = lambda x: 1 / (1 + np.exp(-x))  # Replace 0 with your sigmoid calculation.
+        self.activation_function = lambda x: 1.0 / (1.0 + np.exp(-x))  # Replace 0 with your sigmoid calculation.
         
         ### If the lambda code above is not something you're familiar with,
         # You can uncomment out the following three lines and put your 
@@ -165,12 +165,12 @@ class NeuralNetwork(object):
             #### Implement the forward pass here ####
             ### Forward pass ###
             # TODO: Hidden layer - Replace these values with your calculations.
-            hidden_inputs = np.dot(X, self.weights_input_to_hidden) # signals into hidden layer
-            hidden_outputs = self.activation_function(hidden_inputs) # signals from hidden layer
+            hidden_inputs = X  # signals into hidden layer
+            hidden_outputs = self.activation_function(np.dot(hidden_inputs, self.weights_input_to_hidden))  # signals from hidden layer
 
             # TODO: Output layer - Replace these values with your calculations.
-            final_inputs = np.dot(hidden_outputs, self.weights_hidden_to_output) # signals into final output layer
-            final_outputs = self.activation_function(final_inputs)  # signals from final output layer
+            final_inputs = hidden_outputs # signals into final output layer
+            final_outputs = np.dot(final_inputs, self.weights_hidden_to_output)  # signals from final output layer
             
             #### Implement the backward pass here ####
             ### Backward pass ###
@@ -179,22 +179,22 @@ class NeuralNetwork(object):
             error = y - final_outputs # Output layer error is the difference between desired target and actual output.
             
             # TODO: Backpropagated error terms - Replace these values with your calculations.
-            output_error_term = error * final_outputs * (1 - final_outputs)
+            output_error_term = error
             
             # TODO: Calculate the hidden layer's contribution to the error
             hidden_error = output_error_term * self.weights_hidden_to_output
-            hidden_error_term = hidden_error.T * hidden_outputs * (1 - hidden_outputs)
+            hidden_error_term = hidden_error * hidden_outputs[:,None] * (1 - hidden_outputs[:,None])
             
             # Weight step (input to hidden)
-            delta_weights_i_h += hidden_error_term * X[:, None]
+            delta_weights_i_h += (self.lr * hidden_error_term * hidden_inputs[:,None].T).T
             # Weight step (hidden to output)
-            delta_weights_h_o += output_error_term * hidden_outputs[:, None]
+            delta_weights_h_o += (self.lr * output_error_term * final_inputs[:,None].T).T
 
         # TODO: Update the weights - Replace these values with your calculations.
         # update hidden-to-output weights with gradient descent step
-        self.weights_hidden_to_output += self.lr * delta_weights_h_o / n_records
+        self.weights_hidden_to_output += delta_weights_h_o
         # update input-to-hidden weights with gradient descent step
-        self.weights_input_to_hidden += self.lr * delta_weights_i_h / n_records
+        self.weights_input_to_hidden += delta_weights_i_h
 
     def run(self, features):
         ''' Run a forward pass through the network with input features 
@@ -210,8 +210,8 @@ class NeuralNetwork(object):
         hidden_outputs = self.activation_function(hidden_inputs)  # signals from hidden layer
         
         # TODO: Output layer - Replace these values with the appropriate calculations.
-        final_inputs = np.dot(hidden_outputs, self.weights_hidden_to_output)  # signals into final output layer
-        final_outputs = self.activation_function(final_inputs)  # signals from final output layer
+        final_inputs = hidden_outputs  # signals into final output layer
+        final_outputs = np.dot(final_inputs, self.weights_hidden_to_output)  # signals from final output layer
         
         return final_outputs
 
@@ -238,7 +238,9 @@ test_w_i_h = np.array([[0.1, -0.2],
                        [-0.3, 0.2]])
 test_w_h_o = np.array([[0.3],
                        [-0.1]])
-
+#test_w_i_h = np.array([[0.1, 0.4, -0.3],
+#                       [-0.2, 0.5, 0.2]])
+#test_w_h_o = np.array([[0.3, -0.1]])
 
 class TestMethods(unittest.TestCase):
     
@@ -277,8 +279,9 @@ class TestMethods(unittest.TestCase):
                                               [-0.03172939]])))
         self.assertTrue(np.allclose(network.weights_input_to_hidden,
                                     np.array([[0.10562014, -0.20185996],
-                                              [0.39775194, 0.50074398], 
-                                              [-0.29887597, 0.19962801]])))
+                                                [0.39775194, 0.50074398],
+                                                [-0.29887597, 0.19962801]])))
+
 
     def test_un(self):
         # Test correctness of run method
@@ -332,7 +335,8 @@ for ii in range(iterations):
     # Printing out the training progress
     train_loss = MSE(network.run(train_features).T, train_targets['cnt'].values)
     val_loss = MSE(network.run(val_features).T, val_targets['cnt'].values)
-    sys.stdout.write("\rProgress: {:2.1f}".format(100 * ii/float(iterations))                      + "% ... Training loss: " + str(train_loss)[:5]                      + " ... Validation loss: " + str(val_loss)[:5])
+    sys.stdout.write("\rProgress: {:2.1f}".format(100 * ii/float(iterations)) + "% ... Training loss: " +
+                     str(train_loss)[:5]  + " ... Validation loss: " + str(val_loss)[:5])
     sys.stdout.flush()
     
     losses['train'].append(train_loss)
